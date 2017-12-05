@@ -1,0 +1,35 @@
+version: '2'
+services:
+  web:
+    build: ./web
+    links:
+      - redis
+    ports:
+      - "80:5000"
+    volumes:
+      - ./web:/code
+  config:
+    build: ./initJenkinsWorker
+    links:
+      - jenkins
+      - redis
+  jenkins:
+    build: ./jenkins
+    ports:
+     - "8080:8080"
+    links:
+      - redis
+    volumes:
+     - ./jenkins/home:/var/jenkins_home
+     - ./diag:/diag
+  redis:
+    image: "redis:alpine"
+  az-client:
+    build: ./az-client
+    links:
+      - jenkins
+      - redis
+    volumes:
+      - ./az-client:/Script
+      - ./diag:/diag
+
