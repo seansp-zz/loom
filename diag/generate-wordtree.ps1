@@ -89,6 +89,19 @@ foreach( $vm in $content | Sort-Object -Property location, resourceGroup )
   $vmName = $vm.name
   $vmSize = $vm.hardwareProfile.vmSize
   $azureLocation = $vm.location
+
+  $officialSizes = Get-Content -Raw -Path "/diag/vmsizes.$azureLocation.json.cache" | ConvertFrom-Json 
+  if( $officialSizes ) 
+  {
+    $officialSize = $officialSizes | where { $_.name -eq $vmSize }
+    if( $officialSize )
+    {
+      $vmSize = $officialSize.numberOfCores
+      Write-Host "New size (in cores) $vmSize"
+    }
+  }
+
+
   $resourceGroup = $vm.resourceGroup
 
   if( $vm.location -ne $lastLocation )
