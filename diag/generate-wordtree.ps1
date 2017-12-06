@@ -1,6 +1,5 @@
 #!/usr/bin/pwsh
 $content = Get-Content -Raw -Path "/diag/latest.vm.list" | ConvertFrom-Json
-$sizes = Get-Content -Raw -Path "/diag/latest.sizes.list" | ConvertFrom-Json
 
 $html_header = 
 "<html>
@@ -87,27 +86,13 @@ foreach( $vm in $content | Sort-Object -Property location, resourceGroup )
   $cursor = $cursor + 1
 
   $vmName = $vm.name
-  $vmSize = $vm.hardwareProfile.vmSize
-  $azureLocation = $vm.location
-
-  $officialSizes = Get-Content -Raw -Path "/diag/vmsizes.$azureLocation.json.cache" | ConvertFrom-Json 
-  if( $officialSizes ) 
-  {
-    $officialSize = $officialSizes | where { $_.name -eq $vmSize }
-    if( $officialSize )
-    {
-      $vmSize = $officialSize.numberOfCores
-      Write-Host "New size (in cores) $vmSize"
-    }
-  }
-
 
   $resourceGroup = $vm.resourceGroup
 
   if( $vm.location -ne $lastLocation )
   {
       #We have a new location.  Create the region and link it to the subscription.
-      $sb.AppendLine( "      [$cursor, '$($azureLocationNames[$azureLocation])', 0, 1, 'black']," )
+      $sb.AppendLine( "      [$cursor, '$($azureLocationNames[$($vm.location)])', 0, 1, 'black']," )
       $lastLocation = $vm.location
       $lastResourceGroup = ""
       $locationId = $cursor
@@ -122,15 +107,28 @@ foreach( $vm in $content | Sort-Object -Property location, resourceGroup )
       $cursor = $cursor + 1
   }
 
-  $officialSize = $sizes | where { $_.name -eq $vmSize }
+    $vmSize = $vm.hardwareProfile.vmSize
+    $location = $vm.location
 
-  if( $officialSize )
+    $coreCount = -1
+    $officialSizes = Get-Content -Raw -Path "/diag/vmsizes.$location.json.cache" | ConvertFrom-Json
+    if( $officialSizes )
+    {
+      $officialSize = $officialSizes | where { $_.name -eq $vmSize }
+      if( $officialSize )
+      {
+        $coreCount = $officialSize.numberOfCores
+        Write-Host "New size (in cores) $vmSize"
+      }
+    }
+    Write-Host "vmSize = $vmSize"
+
+  if( $coreCount -gt 0 )
   {
-    $numberOfCores = $officialSize.numberOfCores
-    $sb.Append( "      [$cursor, '$vmName', $resourceId, $numberOfCores, 'green']" )
+    $sb.Append( "      [$cursor, '$vmName', $resourceId, $coreCount, 'green']" )
   }
   else {
-    $sb.Append( "      [$cursor, '$vmName', $resourceId, 1, 'red']" )
+    $sb.Append( "      [$cursor, '$vmName -- UNKNOWN SIZE: $vmSize', $resourceId, 1, 'red']" )
     Write-Host "$vmName -- $azureLocation, $resourceGroup -- UNKNOWN OFFICIAL SIZE: $vmSize"
   }
 }
