@@ -173,7 +173,7 @@ foreach( $result in $results | Sort-Object -Property weightedScore -Descending )
 
 Remove-Item -Path top100.html
 Add-Content -Path top100.html $htmlHeader
-Add-Content -Path top100.html $sbLong.ToString()
+Add-Content -Path top100.html $sbShort.ToString()
 Add-Content -Path top100.html $htmlFooter
 Remove-Item -Path completeList.html
 Add-Content -Path completeList.html $htmlHeader
