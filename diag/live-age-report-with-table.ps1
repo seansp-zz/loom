@@ -133,11 +133,11 @@ $htmlHeader = "
       data.addColumn('string', 'Name');
       data.addColumn('string', 'Resource Group');
       data.addColumn('string', 'Location');
-      data.addColumn('string', 'Core Count');
+      data.addColumn('number', 'Core Count');
       data.addColumn('string', 'vmSize');
-      data.addColumn('string', 'Age in Days');
-      data.addColumn('string', 'Idle Days (for storage)');
-      data.addColumn('string', 'Weight (age*cores)');
+      data.addColumn('number', 'Age in Days');
+      data.addColumn('number', 'Idle Days (for storage)');
+      data.addColumn('number', 'Weight (age*cores)');
       data.addColumn('string', 'Storage Kind');
       data.addRows([
 "
@@ -165,9 +165,9 @@ foreach( $result in $results | Sort-Object -Property weightedScore -Descending )
     Write-Host "$($result.name)`t$($result.resourceGroup)`t$($result.location)`t$($result.vmSize)`t$($result.ageInDays)`t$($result.idleDays)`t$($result.$storageKind)"
     if( $rowCount -le 100 )
     {
-        $sbShort.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)','$($result.vmCoreCount)','$($result.vmSize)','$($result.ageInDays)','$($result.idleDays)','$($result.weightedScore)','$($result.$storageKind)'],")
+        $sbShort.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.$storageKind)'],")
     }
-    $sbLong.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)','$($result.vmCoreCount)','$($result.vmSize)','$($result.ageInDays)','$($result.idleDays)','$($result.weightedScore)','$($result.$storageKind)'],")
+    $sbLong.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.$storageKind)'],")
 }
 
 
