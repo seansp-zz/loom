@@ -21,7 +21,7 @@
       <command>az login -u ${AZURE_APPLICATION} --service-principal --tenant ${AZURE_TENANT} --password ${AZURE_PASSWORD}
 az account set -s &quot;Linux Integration Services Dev &amp; Test&quot;
 
-/diag/live-age-report.ps1</command>
+/diag/live-age-report-with-table.ps1</command>
     </hudson.tasks.Shell>
   </builders>
   <publishers/>
