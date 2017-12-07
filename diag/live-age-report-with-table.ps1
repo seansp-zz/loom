@@ -17,7 +17,7 @@ foreach( $vm in $vms )
     $vmName = $vm.name
     $resourceGroup = $vm.resourceGroup
     $vmSize = $vm.hardwareProfile.vmSize
-    $location = $vm.location
+    $location = $vm.location.ToLower()  # southindia VMs sometimes claim SouthIndia
 
     $officialSizes = Get-Content -Raw -Path "/diag/vmsizes.$location.json.cache" | ConvertFrom-Json 
     if( $officialSizes ) 
