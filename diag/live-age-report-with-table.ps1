@@ -4,6 +4,14 @@ $results = @()
 
 $now = $(Get-Date).ToUniversalTime()
 
+$deList = Get-Content -Raw -Path "/diag/latest.deallocated.vm.list" | ConvertFrom-Json
+$blackList = @()
+foreach( $dvm in $deList )
+{
+    $vmid = $dvm.vmid
+    $blackList += $vmid
+    Write-Host "D: $vmid"
+}
 $failedToRead = $false
 
 Write-Host "Processing $($vms.Count) entries."
@@ -13,6 +21,14 @@ $failCount = 0
 
 foreach( $vm in $vms )
 {
+    $vmid = $vm.vmid
+    $deallocated = $false
+    if( $blackList.Contains( $vmid ) )
+    {
+      $deallocated = $true
+      Write-Host "DEALLOCATED MATCH  $($vm.name)"
+    }
+ 
     $vmIndex++
     $vmName = $vm.name
     $resourceGroup = $vm.resourceGroup
@@ -23,23 +39,23 @@ foreach( $vm in $vms )
     if( $officialSizes ) 
     {
       $officialSize = $officialSizes | where { $_.name -eq $vmSize }
-    if( $officialSize )
-    {
-      $vmCoreCount = $officialSize.numberOfCores
-      Write-Host "New size (in cores) $vmCoreCount"
-    }
+      if( $officialSize )
+      {
+        $vmCoreCount = $officialSize.numberOfCores
+        Write-Host "New size (in cores) $vmCoreCount"
+      }
     }
     Write-Host "$vmSize = $vmCoreCount Cores"
 
 
     $vmDays = 0
     $osdisk = $vm.storageProfile.osdisk
-    $location = $vm.location
     $storageKind = "None"
     
     Write-Host "[$vmIndex] Investigating: -g $resourceGroup -n $vmName ..."
     ## Two options here.  Disks stored with a storage account ...
     $vhd = $osdisk.vhd.uri
+    $vmIdle = -1
     $failCount = 0
     do
     {
@@ -93,11 +109,11 @@ foreach( $vm in $vms )
                 }
             }
         }
-       if( $failCount -ge $failMax )
-       {
-         Write-Host "Exceeded Failure Retry Count."
-         $failedToRead = $false
-       }
+        if( $failCount -ge $failMax )
+        {
+            Write-Host "Exceeded Failure Retry Count."
+            $failedToRead = $false
+        }
     }  while( $failedToRead  )
     $result = @{
         name=$vmName
@@ -109,6 +125,7 @@ foreach( $vm in $vms )
         idleDays=$vmIdle
         storageKind=$storageKind
         weightedScore=$($vmDays * $vmCoreCount)
+        deallocated=$deallocated
     }
     $results += $result
     Write-Host "$vmName`t$vmCoreCount`t$resourceGroup`t$vmDays"
@@ -118,6 +135,7 @@ Write-Host "Creating two reports.  All-Ages and Top-100."
 
 $sbShort = New-Object System.Text.StringBuilder
 $sbLong = New-Object System.Text.StringBuilder
+$sbAllocated = New-Object System.Text.StringBuilder 
 
 
 $htmlHeader = "
@@ -139,6 +157,7 @@ $htmlHeader = "
       data.addColumn('number', 'Idle Days (for storage)');
       data.addColumn('number', 'Weight (age*cores)');
       data.addColumn('string', 'Storage Kind');
+      data.addColumn('string', 'Deallocated');
       data.addRows([
 "
 $date = Get-Date
@@ -158,16 +177,24 @@ $htmlFooter = "
 </html>
 "
 
+
+
 $rowCount = 0
-foreach( $result in $results | Sort-Object -Property weightedScore -Descending )
+$sortedResults = $results | Sort-Object -Property weightedScore -Descending
+
+foreach( $result in $sortedResults )
 {
     $rowCount++
-    Write-Host "$($result.name)`t$($result.resourceGroup)`t$($result.location)`t$($result.vmSize)`t$($result.ageInDays)`t$($result.idleDays)`t$($result.$storageKind)"
+    Write-Host "$($result.name)`t$($result.resourceGroup)`t$($result.location)`t$($result.vmSize)`t$($result.ageInDays)`t$($result.idleDays)`t$($result.storageKind)"
     if( $rowCount -le 100 )
     {
-        $sbShort.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.$storageKind)'],")
+        $sbShort.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.storageKind)', '$($result.deallocated)'],`n")
     }
-    $sbLong.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.$storageKind)'],")
+    if( $result.deallocated -eq $false )
+    {
+      $sbAllocated.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.storageKind)', '$($result.deallocated)'],`n")
+    }
+    $sbLong.Append( "['$($result.name)', '$($result.resourceGroup)','$($result.location)',$($result.vmCoreCount),'$($result.vmSize)',$($result.ageInDays),$($result.idleDays),$($result.weightedScore),'$($result.storageKind)', '$($result.deallocated)'],`n")
 }
 
 
@@ -179,3 +206,10 @@ Remove-Item -Path completeList.html
 Add-Content -Path completeList.html $htmlHeader
 Add-Content -Path completeList.html $sbLong.ToString()
 Add-Content -Path completeList.html $htmlFooter
+Remove-Item -Path allocatedList.html
+Add-Content -Path allocatedList.html $htmlHeader
+Add-Content -Path allocatedList.html $sbAllocated.ToString()
+Add-Content -Path allocatedList.html $htmlFooter
+
+
+
