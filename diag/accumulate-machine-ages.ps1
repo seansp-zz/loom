@@ -112,5 +112,3 @@ foreach( $vm in $allVMStatus )
 }
 Write-Host "FinalResults.Count = $($finalResults.Count)"
 $finalResults | ConvertTo-Json -Depth 10 | Set-Content "cache.results.json"
-
-Copy-Item "cache.results.json" "Z:\Jenkins_Shared_Do_Not_Delete\userContent\shared\" -Force -Verbose
